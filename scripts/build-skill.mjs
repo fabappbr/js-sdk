@@ -37,10 +37,10 @@ const out = join(root, "skill", "SKILL.md");
 if (process.argv.includes("--check")) {
   const current = (() => { try { return readFileSync(out, "utf8"); } catch { return ""; } })();
   if (current !== skill) {
-    console.error("skill/SKILL.md está fora de sincronia com AGENTS.md — rode `npm run skill`.");
+    console.error("skill/SKILL.md is out of sync with AGENTS.md — run `npm run skill`.");
     process.exit(1);
   }
-  console.log("skill: em sincronia com AGENTS.md");
+  console.log("skill: in sync with AGENTS.md");
 } else {
   writeFileSync(out, skill);
   console.log(`skill: ${out} gerado a partir de AGENTS.md (${skill.split("\n").length} linhas)`);

@@ -214,11 +214,11 @@ that arrives as a list — all of them arrive with a status you can branch on an
 
 ## A Skill
 
-O pacote traz `skill/SKILL.md` — o mesmo conteúdo do `AGENTS.md`, com o cabeçalho que o Claude Code e o claude.ai usam para decidir quando carregá-lo. Aponte a sua ferramenta para `node_modules/@fabappai/sdk/skill/`.
+The package ships `skill/SKILL.md` — the same content as `AGENTS.md`, with the header Claude Code and claude.ai use to decide when to load it. Point your tool at `node_modules/@fabappai/sdk/skill/`.
 
-Ela é **derivada**, não uma segunda cópia: `AGENTS.md` é a fonte, `npm run skill` regenera, e o CI reprova se os dois divergirem.
+It is **derived**, not a second copy: `AGENTS.md` is the source, `npm run skill` regenerates it, and CI fails if the two drift.
 
-E há um teste do outro lado — no repositório da plataforma — que amarra o que ela **ensina** ao que o código **faz**: a gramática de acesso, os padrões fail-closed, o limite de um salto do `owner_via`, os ids canônicos e os tipos de campo. Documentação que envelhece é pior que nenhuma: fica confiantemente errada, e quem lê não tem como saber.
+And there is a test on the other side — in the platform repository — that ties what it **teaches** to what the code **does**: the access grammar, the fail-closed defaults, `owner_via`'s one-hop limit, the canonical ids and the field types. Documentation that goes stale is worse than none: it becomes confidently wrong, and the reader has no way to tell.
 
 ## Not in this package
 

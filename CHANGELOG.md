@@ -2,14 +2,15 @@
 
 ## 0.1.4
 
-**A Skill.** O pacote passa a trazer `skill/SKILL.md`, com o cabeçalho que faz uma ferramenta decidir quando
-carregá-lo. É **derivado** do `AGENTS.md` por `npm run skill`, e o CI reprova se os dois divergirem — três cópias
-do mesmo ensino divergem em três direções, e este já tinha duas casas possíveis.
+**A Skill.** The package now ships `skill/SKILL.md`, with the header that lets a tool decide when to load it. It
+is **derived** from `AGENTS.md` by `npm run skill`, and CI fails if the two drift — three copies of the same
+teaching drift in three directions, and this one already had two possible homes.
 
-O prompt do codegen deliberadamente NÃO é a fonte, e o motivo não é duplicação: é PÚBLICO. Ele fala com um modelo
-rodando dentro da plataforma — emite `fab.schema.json` como canal, chama `set_schema`, e nunca ouviu falar de
-`@fabappai/sdk` nem de `createClient`. Um agente no laptop de alguém tem a situação oposta. Copiar aquelas
-instruções entregaria conselho preciso, testado em produção, e errado para quem lê.
+The codegen prompt is deliberately NOT the source, and the reason is not duplication: it is that this file is
+PUBLIC. That prompt talks to a model running inside the platform — it emits `fab.schema.json` as its channel, calls
+`set_schema`, and has never heard of `@fabappai/sdk` or `createClient`. An agent on somebody's laptop is in the
+opposite situation. Copying those instructions would hand over advice that is precise, production-tested, and wrong
+for whoever reads it.
 
 ## 0.1.3
 

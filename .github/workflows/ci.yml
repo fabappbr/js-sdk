@@ -1,12 +1,12 @@
-# Gate de todo push e todo PR. Os MESMOS passos do `publish.yml`, menos o publish em si.
+# The gate on every push and every PR. The SAME steps as `publish.yml`, minus the publish itself.
 #
-# A razão de existir separado: o publish dispara só por TAG, e uma tag é o pior momento para descobrir que o
-# typecheck quebrou — a versão já foi decidida, o commit já foi feito, e o conserto vira uma tag nova. Aqui o
-# sinal chega no push que causou.
+# Why it exists separately: publish triggers on a TAG only, and a tag is the worst moment to find out the typecheck
+# broke — the version has already been decided, the commit has already been made, and the fix becomes a new tag.
+# Here the signal arrives on the push that caused it.
 #
-# O `lint:no-react` é o passo que define este pacote. Um `import react` ou um `import.meta.env` aqui instala limpo
-# e só quebra no runtime de quem usa: em Node e no Next.js o `import.meta.env` simplesmente não existe, e a base
-# da API viraria `undefined`. Regra cobrada, não lembrada.
+# `lint:no-react` is the step that defines this package. An `import react` or an `import.meta.env` in here installs
+# cleanly and only breaks at the user's runtime: in Node and in Next.js `import.meta.env` simply does not exist, and
+# the API base would become `undefined`. A rule that is enforced, not remembered.
 name: ci
 
 on:
@@ -30,25 +30,25 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - run: npm ci --no-audit --no-fund
-      - name: fronteira — sem React, sem global de bundler
+      - name: the boundary — no React, no bundler global
         run: npm run lint:no-react
-      # A Skill é DERIVADA do AGENTS.md. Editar um sem gerar o outro põe as duas a divergir em silêncio, que é
-      # exatamente o problema que ter uma fonte só existia para resolver.
-      - name: a Skill está em dia com o AGENTS.md
+      # The Skill is DERIVED from AGENTS.md. Editing one without generating the other sets the two drifting in
+      # silence, which is exactly the problem having a single source existed to solve.
+      - name: the Skill is up to date with AGENTS.md
         run: npm run skill:check
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # O pacote tem de FUNCIONAR fora de bundler — é a tese inteira dele. Um import de Node puro contra o dist/
-      # prova isso em três linhas; sem este passo, o primeiro a descobrir seria quem instalou.
-      # ⚠️ Bloco literal (`|`), e não escalar simples: o `projectId: 'p'` aqui dentro tem dois-pontos seguido de
-      # espaço, que o YAML lê como mapeamento aninhado. Escrito em uma linha só, este passo derruba o arquivo
-      # inteiro com "mapping values are not allowed here" — e o workflow falha em 0s, antes de qualquer step.
-      - name: o build importa em Node puro
+      # The package has to WORK outside a bundler — that is its entire thesis. A plain Node import against dist/
+      # proves it in three lines; without this step, the first to find out would be whoever installed it.
+      # ⚠️ A literal block (`|`), not a plain scalar: the `projectId: 'p'` inside has a colon followed by a space,
+      # which YAML reads as a nested mapping. Written on a single line, this step takes the whole file down with
+      # "mapping values are not allowed here" — and the workflow fails in 0s, before any step.
+      - name: the build imports in plain Node
         run: |
           node -e "
             import('./dist/index.js').then((m) => {
               const client = m.createClient({ projectId: 'p' });
-              if (!client.auth || !client.collection) throw new Error('superficie incompleta');
+              if (!client.auth || !client.collection) throw new Error('incomplete surface');
             });
           "
