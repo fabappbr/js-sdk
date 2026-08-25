@@ -154,7 +154,7 @@ export function createClient(config: ClientConfig): FabClient {
 }
 
 export { AbortError, ApiError } from "./http.js";
-export { cookieStorage, memoryStorage } from "./storage.js";
+export { cookieStorage, memoryStorage, readCookie } from "./storage.js";
 export { buildListQuery } from "./collection.js";
 export type { Auth, AuthListener, SignupInput } from "./auth.js";
 export type { Collection } from "./collection.js";

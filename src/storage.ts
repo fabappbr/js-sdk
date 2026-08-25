@@ -34,18 +34,40 @@ export function cookieStorage(name: string): TokenStorage {
   let shadow: string | undefined;
   return {
     get() {
-      if (typeof document !== "undefined") {
-        const raw = document.cookie.split("; ").find((c) => c.startsWith(name + "="))?.split("=")[1];
-        if (raw) return raw;
-      }
+      const stored = readCookie(name);
+      if (stored) return stored;
       return inFrame() ? shadow : undefined;
     },
     set(token) {
       shadow = token || undefined;
       if (typeof document === "undefined") return;
       document.cookie = token
-        ? `${name}=${token}; path=/; max-age=${THIRTY_DAYS}; samesite=lax`
+        ? `${name}=${encodeURIComponent(token)}; path=/; max-age=${THIRTY_DAYS}; samesite=lax`
         : `${name}=; path=/; max-age=0; samesite=lax`;
     },
   };
+}
+
+/**
+ * The cookie jar, parsed properly. Exported because the failure it fixes is invisible: a token that cannot be read
+ * does not raise — the person is simply logged out, onto a screen identical to a first visit.
+ *
+ * Two things the obvious one-liner gets wrong. `split("; ")` requires the space, and while a browser normally
+ * writes one, nothing guarantees it — anything setting `document.cookie` by hand can produce `a=1;token=…`, and the
+ * session vanishes. And `split("=")[1]` cuts the value at the first `=`, which a JWT never has, so it holds right
+ * up until something else is stored there.
+ */
+export function readCookie(name: string, jar?: string): string | undefined {
+  const source = jar ?? (typeof document !== "undefined" ? document.cookie : "");
+  if (!source) return undefined;
+  for (const pair of source.split(";")) {
+    const eq = pair.indexOf("=");
+    if (eq < 0) continue;
+    if (pair.slice(0, eq).trim() !== name) continue;
+    const raw = pair.slice(eq + 1).trim();
+    // A value written before this escaped nothing, and a JWT survives a decode untouched — so decoding is safe for
+    // what is already out there. A malformed escape throws, and the raw value beats no value at all.
+    try { return decodeURIComponent(raw); } catch { return raw; }
+  }
+  return undefined;
 }

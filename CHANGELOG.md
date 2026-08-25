@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.3
+
+**Fixed — the session cookie.** Two ways a signed-in person was shown the logged-out screen with nothing raised and
+nothing logged, which is the same screen a first-time visitor sees:
+
+- `split("; ")` required the space after the `;`. A browser normally writes one, but nothing guarantees it —
+  anything that sets `document.cookie` by hand can produce `a=1;fab_token_x=…`, and the session vanished.
+- `split("=")[1]` cut the value at the first `=`. A JWT has none, so it held right up until something else was
+  stored there.
+
+The value is now escaped on write and unescaped on read, which makes an arbitrary `auth.setToken(…)` safe. A JWT is
+unchanged by either, so cookies written by earlier versions keep working.
+
+**Added.** `readCookie(name, jar?)`, exported — the parsing is worth being able to test, and worth reusing.
+
+**Documented.** A backend function's `ctx` now offers the same API as this client, under the same names. It used to
+expose five data methods against this client's twelve, and `notify`, `generateImage` and `extractData` did not exist
+server-side at all.
+
 ## 0.1.2
 
 Six defects, all found by a code review that probed the transport instead of reading it, and all of them shipped

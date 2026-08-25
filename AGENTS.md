@@ -229,6 +229,27 @@ when a route moves.
 **Every AI key, connector secret and gateway credential lives on the platform.** Your code names an operation; it
 never carries the means to perform it. There is no place to put an API key in an app, and no need for one.
 
+### A backend function has the same API
+
+Inside `functions/*.ts` you get a `ctx` rather than a client you construct, and the names are the same ones:
+
+```ts
+export default async function (req, ctx) {
+  if (!ctx.user) return new Response("login required", { status: 401 });
+  const open = await ctx.collection("task").count({ done: false });   // same methods, same options
+  const { text } = await ctx.ai.invokeLLM({ prompt: `Summarise ${open} open tasks` });
+  await ctx.notify("email", { to: ctx.user.email, subject: "Your summary", message: text ?? "" });
+  return Response.json({ ok: true });
+}
+```
+
+**One difference, and it is the important one: `ctx` BYPASSES the access rules.** It runs with the platform's own
+credential, so every authorization check in a function is yours to write — `ctx.user` is the caller, and it is the
+only thing that says who they are. Never trust a `userId`, `role` or `isAdmin` sent in the request body.
+
+`ctx.auth`, `ctx.push` and `ctx.paymentMethods` do not exist: they need a signed-in end user, and a function is not
+one. `ctx.data(model)` and `ctx.invokeLLM(...)` are older aliases that still work.
+
 ### What comes back on every record
 
 Three fields you did not declare, on every row of every model:
