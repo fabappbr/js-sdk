@@ -33,10 +33,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
-      # npm 11.5.1+ é o que sabe trocar o token OIDC do Actions por permissão de publish.
-      - run: npm install -g npm@latest
+
+      # Trusted Publishing exige npm >= 11.5.1 (é a versão que sabe trocar o token OIDC do Actions por permissão de
+      # publish). O Node 24 já traz um npm 11.x, então NÃO instalamos npm globalmente — foi exatamente
+      # `npm install -g npm@latest` que reprovou o v0.1.1: o npm@12 exige Node ^22.22 || ^24.15 || >=26, e o job
+      # rodava em Node 20. Pedir "o mais novo" acopla este workflow ao calendário de lançamento do npm; conferir o
+      # que já veio não acopla a nada.
+      - name: npm sabe fazer Trusted Publishing
+        run: |
+          have="$(npm -v)"; need=11.5.1
+          printf '%s\n%s\n' "$need" "$have" | sort -V -C \
+            || { echo "::error::npm $have é anterior a $need — o publish por OIDC não existe nessa versão"; exit 1; }
+          echo "npm $have · node $(node -v)"
+
       - run: npm ci --no-audit --no-fund
 
       # A tag é a fonte da verdade da versão. Sem esta conferência, uma tag v0.2.0 publicaria o 0.1.0 do

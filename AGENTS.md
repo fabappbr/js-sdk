@@ -117,6 +117,24 @@ canonical fields; a required field it does not know about makes the app unable t
 
 ## 2. The schema
 
+### First, find out what it is
+
+You cannot write against models you have not seen, and **this client cannot tell you.** Deliberately: it holds an
+end user's session, and an end user has no business enumerating the shape of the database. Three ways to find out,
+in the order you should try them:
+
+1. **Inside a generated Fabapp app, read the code.** The app already queries its own models — `collection("…")` calls
+   and the types beside them are the schema, stated by something that works.
+2. **From the platform, with the project owner's own credential:** `GET /projects/{projectId}` returns every model
+   with its fields and its access rules. It requires a Studio token, not an app-user one, and it is not reachable
+   through this package.
+3. **Ask the person.** Faster than guessing, and guessing is expensive: a model id that does not exist answers 404,
+   and an invented field answers 422.
+
+Guessing has one mercy — it fails loudly. See §7.
+
+### The shape
+
 A project's schema is a list of models:
 
 ```jsonc
@@ -210,6 +228,26 @@ when a route moves.
 
 **Every AI key, connector secret and gateway credential lives on the platform.** Your code names an operation; it
 never carries the means to perform it. There is no place to put an API key in an app, and no need for one.
+
+### What comes back on every record
+
+Three fields you did not declare, on every row of every model:
+
+```jsonc
+{ "id": "77ab6b32-…",
+  "created_at": "2026-08-25T04:28:35Z",
+  "created_by": "9f565d85-…",        // the app-user who created it — stamped by the server
+  "code": "REG-001",
+  "event": "fafc1d7a-…",
+  "event__label": "Meetup de engenharia" }   // ← the label of every ref field, resolved for you
+```
+
+**`<field>__label` is why you rarely need a second query.** Every `ref` field arrives with the referenced record's
+`labelField` beside it. To show "you are registered for *Meetup de engenharia*", read `registration.event__label` —
+do not fetch the event.
+
+`created_by` is the creator, which is **not** the same as the owner. On a model with an ownership field, the owner is
+that field; `created_by` merely records who made the row. See creator ≠ owner in §1.
 
 ---
 
@@ -326,8 +364,21 @@ Every non-2xx throws an `ApiError` with the HTTP `status` and the server's messa
 | 401 | No session | Sign in |
 | 402 | Out of credits | An AI or integration call on an exhausted account |
 | 403 | The access rules said no | A missing `"read": "public"`, or an ownership rule pointed at the wrong field |
-| 404 | Not there, or not yours | Deliberately indistinguishable — it does not confirm a record exists |
+| 404 | Not there, or not yours | Also `modelo inexistente no projeto: <id>` — a model id that does not exist |
+| 422 | The schema disagrees | A field that is not there. This is what guessing produces |
 | 429 | Rate limited | Back off and retry |
+
+The 422s name the offender, so read the message rather than retrying:
+
+```
+campo não filtrável: nope              ← list({ filter: { nope: … } })
+campo não ordenável: nope              ← list({ sort: "-nope" })
+campos desconhecidos: ['inventado']    ← create({ inventado: 1 })
+```
+
+One thing fails quietly instead: a projection naming a field that does not exist just drops it, and you get the
+valid ones back. And writing an ownership field to someone else's id answers `403 — não pode atribuir 'attendee' a
+outro usuário`, which is the creator ≠ owner rule refusing at runtime.
 
 A 403 on a screen that *should* be public is the fail-closed default. A 403 on a write that should belong to the user
 is almost always `owner_field` pointing at a ref field where `owner_via` was needed.

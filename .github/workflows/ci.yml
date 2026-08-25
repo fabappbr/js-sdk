@@ -1,0 +1,41 @@
+# Gate de todo push e todo PR. Os MESMOS passos do `publish.yml`, menos o publish em si.
+#
+# A razão de existir separado: o publish dispara só por TAG, e uma tag é o pior momento para descobrir que o
+# typecheck quebrou — a versão já foi decidida, o commit já foi feito, e o conserto vira uma tag nova. Aqui o
+# sinal chega no push que causou.
+#
+# O `lint:no-react` é o passo que define este pacote. Um `import react` ou um `import.meta.env` aqui instala limpo
+# e só quebra no runtime de quem usa: em Node e no Next.js o `import.meta.env` simplesmente não existe, e a base
+# da API viraria `undefined`. Regra cobrada, não lembrada.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm ci --no-audit --no-fund
+      - name: fronteira — sem React, sem global de bundler
+        run: npm run lint:no-react
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # O pacote tem de FUNCIONAR fora de bundler — é a tese inteira dele. Um import de Node puro contra o dist/
+      # prova isso em três linhas; sem este passo, o primeiro a descobrir seria quem instalou.
+      - name: o build importa em Node puro
+        run: node -e "import('./dist/index.js').then(m => { const c = m.createClient({ projectId: 'p' }); if (!c.auth || !c.collection) throw new Error('superfície incompleta'); })"
