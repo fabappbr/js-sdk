@@ -32,6 +32,10 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: fronteira — sem React, sem global de bundler
         run: npm run lint:no-react
+      # A Skill é DERIVADA do AGENTS.md. Editar um sem gerar o outro põe as duas a divergir em silêncio, que é
+      # exatamente o problema que ter uma fonte só existia para resolver.
+      - name: a Skill está em dia com o AGENTS.md
+        run: npm run skill:check
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

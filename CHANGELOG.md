@@ -1,5 +1,16 @@
 # Changelog
 
+## Não lançado
+
+**A Skill.** O pacote passa a trazer `skill/SKILL.md`, com o cabeçalho que faz uma ferramenta decidir quando
+carregá-lo. É **derivado** do `AGENTS.md` por `npm run skill`, e o CI reprova se os dois divergirem — três cópias
+do mesmo ensino divergem em três direções, e este já tinha duas casas possíveis.
+
+O prompt do codegen deliberadamente NÃO é a fonte, e o motivo não é duplicação: é PÚBLICO. Ele fala com um modelo
+rodando dentro da plataforma — emite `fab.schema.json` como canal, chama `set_schema`, e nunca ouviu falar de
+`@fabappai/sdk` nem de `createClient`. Um agente no laptop de alguém tem a situação oposta. Copiar aquelas
+instruções entregaria conselho preciso, testado em produção, e errado para quem lê.
+
 ## 0.1.3
 
 **Fixed — the session cookie.** Two ways a signed-in person was shown the logged-out screen with nothing raised and

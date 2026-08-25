@@ -212,6 +212,14 @@ blocked origin, DNS. And an **`AbortError`** (not an `ApiError`) is a request yo
 Whatever the API answers, you get an `ApiError`. A gateway's HTML 502, an empty error body, a validation `detail`
 that arrives as a list — all of them arrive with a status you can branch on and a message a person can read.
 
+## A Skill
+
+O pacote traz `skill/SKILL.md` — o mesmo conteúdo do `AGENTS.md`, com o cabeçalho que o Claude Code e o claude.ai usam para decidir quando carregá-lo. Aponte a sua ferramenta para `node_modules/@fabappai/sdk/skill/`.
+
+Ela é **derivada**, não uma segunda cópia: `AGENTS.md` é a fonte, `npm run skill` regenera, e o CI reprova se os dois divergirem.
+
+E há um teste do outro lado — no repositório da plataforma — que amarra o que ela **ensina** ao que o código **faz**: a gramática de acesso, os padrões fail-closed, o limite de um salto do `owner_via`, os ids canônicos e os tipos de campo. Documentação que envelhece é pior que nenhuma: fica confiantemente errada, e quem lê não tem como saber.
+
 ## Not in this package
 
 **React components and hooks.** Generated Fabapp apps get those seeded as editable source in `src/lib` and
