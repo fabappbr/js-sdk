@@ -1,6 +1,6 @@
 {
   "name": "@fabappai/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fabapp's API client: data, auth, files, AI, functions, connectors and admin. Framework-agnostic.",
   "license": "MIT",
   "type": "module",
@@ -14,12 +14,31 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src", "AGENTS.md", "README.md", "SECURITY.md", "LICENSE"],
-  "engines": { "node": ">=18" },
-  "keywords": ["fabapp", "backend", "sdk", "api-client"],
-  "repository": { "type": "git", "url": "git+https://github.com/fabappbr/js-sdk.git" },
+  "files": [
+    "dist",
+    "src",
+    "AGENTS.md",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "fabapp",
+    "backend",
+    "sdk",
+    "api-client"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabappbr/js-sdk.git"
+  },
   "homepage": "https://github.com/fabappbr/js-sdk#readme",
-  "bugs": { "url": "https://github.com/fabappbr/js-sdk/issues" },
+  "bugs": {
+    "url": "https://github.com/fabappbr/js-sdk/issues"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
