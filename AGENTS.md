@@ -367,6 +367,7 @@ Every non-2xx throws an `ApiError` with the HTTP `status` and the server's messa
 | 404 | Not there, or not yours | Also `modelo inexistente no projeto: <id>` — a model id that does not exist |
 | 422 | The schema disagrees | A field that is not there. This is what guessing produces |
 | 429 | Rate limited | Back off and retry |
+| 0 | It never reached the API | A dropped connection, a blocked origin, DNS |
 
 The 422s name the offender, so read the message rather than retrying:
 
@@ -376,8 +377,12 @@ campo não ordenável: nope              ← list({ sort: "-nope" })
 campos desconhecidos: ['inventado']    ← create({ inventado: 1 })
 ```
 
+A request you abandoned rejects with `AbortError` rather than `ApiError` — it never became an answer, so it has no
+status to branch on.
+
 One thing fails quietly instead: a projection naming a field that does not exist just drops it, and you get the
-valid ones back. And writing an ownership field to someone else's id answers `403 — não pode atribuir 'attendee' a
+valid ones back. So does a comma inside an `in` filter: `{ tag: ["a,b", "c"] }` travels as `a,b,c` and matches
+three values, not two. And writing an ownership field to someone else's id answers `403 — não pode atribuir 'attendee' a
 outro usuário`, which is the creator ≠ owner rule refusing at runtime.
 
 A 403 on a screen that *should* be public is the fail-closed default. A 403 on a write that should belong to the user

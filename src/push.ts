@@ -43,8 +43,11 @@ export function createPush(req: Requester, publicConfig: () => Promise<PublicCon
 
     async enable() {
       if (!supported()) return false;
-      const key = (await publicConfig()).vapidPublicKey;
-      if (!key) return false;                                   // the platform has no VAPID key: push is unavailable
+      // `publicConfig` now propagates a network failure instead of caching an empty answer forever, and "could not
+      // ask" is the same outcome here as "there is no key": push is not available right now. The caller sees false
+      // and can offer the button again later, which is exactly what it could not do before.
+      const key = await publicConfig().then((c) => c.vapidPublicKey).catch(() => null);
+      if (!key) return false;
       if ((await Notification.requestPermission()) !== "granted") return false;
       await navigator.serviceWorker.register("/sw.js").catch(() => {});   // idempotent, registered on demand
       const registration = await navigator.serviceWorker.ready;

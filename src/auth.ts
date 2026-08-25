@@ -84,7 +84,11 @@ export function createAuth(req: Requester, storage: TokenStorage): Auth {
 
   const emit = (user: AppUser | null): AppUser | null => {
     current = user;
-    for (const listener of listeners) listener(user);
+    for (const listener of listeners) {
+      // One bad subscriber must not stop the others, and must not make `logout()` throw. A screen that crashes
+      // inside its own listener would otherwise leave every other screen holding the previous user.
+      try { listener(user); } catch { /* the subscriber's problem, not the session's */ }
+    }
     return user;
   };
 

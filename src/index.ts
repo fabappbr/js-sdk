@@ -35,6 +35,17 @@ export type ClientConfig = {
   storage?: TokenStorage;
   /** Override `fetch` — for a proxy, for retries, or for a test that never touches the network. */
   fetch?: typeof fetch;
+  /**
+   * Milliseconds before a request is abandoned. Off by default, because nothing here is uniformly fast: a
+   * `tier: "smart"` model call legitimately runs for a minute, and a timeout short enough to protect a list read
+   * would cut it off. Set it per client — one for reads, another for the AI — rather than globally low.
+   */
+  timeout?: number;
+  /**
+   * A signal every request of this client obeys. One client per screen, aborted on unmount, and the in-flight
+   * requests go with it — which is also how you stop a response arriving after the component is gone.
+   */
+  signal?: AbortSignal;
   /** ISO 4217, for `formatMoney`. The app's currency, not the visitor's. */
   currency?: string;
   /** BCP-47, for the date and money formatters. Empty means "follow the browser". */
@@ -95,17 +106,23 @@ export function createClient(config: ClientConfig): FabClient {
   const fetchImpl = config.fetch ?? (typeof fetch !== "undefined" ? fetch.bind(globalThis) : undefined);
   if (!fetchImpl) throw new Error("createClient found no fetch — pass one (Node 18+ has it built in)");
 
-  const req = createRequester({ baseUrl, projectId, storage, fetchImpl });
+  const req = createRequester({ baseUrl, projectId, storage, fetchImpl,
+                                timeout: config.timeout, signal: config.signal });
   const format = createFormat({ currency: config.currency, locale: config.locale });
 
   // One in-flight promise, reused: the public config is fetched by push, by billing and by the auth screens, and
   // three boots of the same app should not be three requests.
+  //
+  // It caches the SUCCESS and never the failure. Swallowing the error into `{}` and keeping it looked harmless and
+  // was not: one dropped connection at boot left the client permanently configless for its whole lifetime — push
+  // could never enable (no VAPID key) and phone sign-in never appeared, with nothing logged and no way back.
   let configPromise: Promise<PublicConfig> | null = null;
   const publicConfig = (): Promise<PublicConfig> => {
     if (!configPromise) {
-      configPromise = fetchImpl(`${baseUrl}/projects/${projectId}/api/_config`)
-        .then((r) => r.json() as Promise<PublicConfig>)
-        .catch(() => ({}) as PublicConfig);
+      configPromise = req<PublicConfig>("GET", "/api/_config").catch((e) => {
+        configPromise = null;    // let the next caller try again
+        throw e;
+      });
     }
     return configPromise;
   };
@@ -136,12 +153,12 @@ export function createClient(config: ClientConfig): FabClient {
   };
 }
 
-export { ApiError } from "./http.js";
+export { AbortError, ApiError } from "./http.js";
 export { cookieStorage, memoryStorage } from "./storage.js";
 export { buildListQuery } from "./collection.js";
 export type { Auth, AuthListener, SignupInput } from "./auth.js";
 export type { Collection } from "./collection.js";
-export type { Requester } from "./http.js";
+export type { Requester, RequestOptions } from "./http.js";
 export type { Push, PublicConfig } from "./push.js";
 export type { Admin, AI, Google, NotifyChannel, Orgs, PaymentMethods, UploadedFile } from "./resources.js";
 export type { TokenStorage } from "./storage.js";

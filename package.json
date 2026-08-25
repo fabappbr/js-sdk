@@ -1,6 +1,6 @@
 {
   "name": "@fabappai/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fabapp's API client: data, auth, files, AI, functions, connectors and admin. Framework-agnostic.",
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -47,6 +48,7 @@
     "lint:no-react": "node scripts/no-react.mjs"
   },
   "devDependencies": {
+    "@types/node": "^22.10.7",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   }

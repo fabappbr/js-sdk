@@ -52,6 +52,10 @@ await tasks.remove(id);
 Operators: `eq` `ne` `gt` `gte` `lt` `lte` `in` `nin` `contains` `starts` `null`. `sort: "field"` ascends,
 `sort: "-field"` descends.
 
+⚠️ **A comma separates the values of an `in`, and nothing escapes it.** `{ tag: ["a,b", "c"] }` goes over the wire
+as `a,b,c` and comes back matching three values, not two. Where the values may contain commas, filter on something
+else — an id, an enum — or filter client-side.
+
 **Access rules run on the server**, per record, for every one of these calls. A list returns what the caller may
 read, and a write the caller may not perform fails — there is no client-side flag that changes that.
 
@@ -145,9 +149,36 @@ createClient({
   token,              // start from a token you already hold
   storage,            // where the session lives — see below
   fetch,              // your own fetch, for a proxy, retries, or a test
+  timeout,            // ms before a request is abandoned; off by default
+  signal,             // an AbortSignal every request of this client obeys
   currency, locale,   // for formatMoney / formatDate
 });
 ```
+
+### Timeouts and cancelling
+
+There is no default timeout, and that is deliberate: nothing here is uniformly fast. A `tier: "smart"` model call
+legitimately runs for a minute, and a limit short enough to protect a list read would cut it off. Set it per client
+instead of globally low.
+
+```ts
+const reads = createClient({ projectId, timeout: 10_000 });
+const ai    = createClient({ projectId, timeout: 120_000 });
+```
+
+`signal` binds a client to a lifetime — one client per screen, aborted when the screen goes away, and the in-flight
+requests go with it. It is also how you stop a response arriving after a component has unmounted.
+
+```ts
+useEffect(() => {
+  const stop = new AbortController();
+  const fab = createClient({ projectId, signal: stop.signal });
+  fab.collection<Task>("task").list().then(setTasks).catch(ignoreAborts);
+  return () => stop.abort();
+}, []);
+```
+
+An abandoned request rejects with `AbortError`, not `ApiError` — it never became an answer.
 
 The session lives in a cookie in the browser and in memory everywhere else. Two clients never share a session, which
 is what makes this safe to use on a server — one client per request, one token per user.
@@ -172,8 +203,14 @@ try {
 }
 ```
 
-`401` means no session, `403` means the access rules said no, `402` means the account is out of credits, `429` means
-a rate limit.
+`401` means no session, `403` means the access rules said no, `402` means the account is out of credits, `422` means
+the schema disagrees with what you sent, `429` means a rate limit.
+
+Two statuses that are not HTTP: **`status: 0`** is a request that never reached the API — a dropped connection, a
+blocked origin, DNS. And an **`AbortError`** (not an `ApiError`) is a request you or your timeout gave up on.
+
+Whatever the API answers, you get an `ApiError`. A gateway's HTML 502, an empty error body, a validation `detail`
+that arrives as a list — all of them arrive with a status you can branch on and a message a person can read.
 
 ## Not in this package
 
