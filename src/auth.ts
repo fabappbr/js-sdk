@@ -1,0 +1,169 @@
+import type { Requester } from "./http.js";
+import type { TokenStorage } from "./storage.js";
+import type { AppUser, Row } from "./types.js";
+
+/** Called whenever the signed-in user changes — a login, a logout, a profile edit. */
+export type AuthListener = (user: AppUser | null) => void;
+
+export type SignupInput = {
+  email: string;
+  name?: string;
+  password: string;
+  passwordConfirmation?: string;
+  /** Extra fields written to the user profile at signup (avatar, phone, anything the schema declares). */
+  profile?: Row;
+};
+
+/**
+ * Every auth operation, as plain functions.
+ *
+ * These used to exist only inside the React `useAuth` hook, which meant a script, a server route or a non-React
+ * frontend had no way to sign anyone in. The hook now wraps this object instead of owning the calls, so both
+ * surfaces stay one implementation.
+ */
+export type Auth = {
+  /** The last user this client saw. It does NOT fetch — call `me()` to ask the server. */
+  readonly user: AppUser | null;
+  /** Whether a token is held at all. Cheap and synchronous; it does not prove the token is still valid. */
+  hasToken(): boolean;
+  /** Subscribe to user changes. Returns the unsubscribe function. */
+  subscribe(listener: AuthListener): () => void;
+
+  me(): Promise<AppUser>;
+  login(email: string, password: string): Promise<AppUser>;
+  signup(input: SignupInput): Promise<AppUser>;
+  logout(): void;
+
+  updateProfile(patch: { name?: string; [k: string]: unknown }): Promise<AppUser>;
+  changePassword(newPassword: string, current?: string): Promise<AppUser>;
+  forgotPassword(email: string, resetUrl?: string): Promise<void>;
+  resetPassword(token: string, password: string, confirm?: string): Promise<AppUser>;
+  verifyEmail(token: string): Promise<AppUser>;
+  resendVerification(verifyUrl?: string): Promise<void>;
+  acceptInvite(token: string, name: string, password: string): Promise<AppUser>;
+
+  /** SMS sign-in and recovery. Only works when the app owner has connected an SMS provider. */
+  sendPhoneCode(phone: string, purpose?: "login" | "reset"): Promise<void>;
+  loginWithPhone(phone: string, code: string): Promise<AppUser>;
+  resetPasswordSms(phone: string, code: string, newPassword: string): Promise<AppUser>;
+  linkPhone(phone: string): Promise<void>;
+  verifyPhoneLink(phone: string, code: string): Promise<AppUser>;
+
+  /** The provider consent URL. Send the browser there; the provider returns to `redirectUri`. */
+  oauthStartUrl(provider: string, redirectUri?: string): string;
+  /**
+   * Reads a token the provider left in the URL fragment, stores it and loads the user. Returns null when there is no
+   * session to establish. Browser only.
+   */
+  completeOAuth(): Promise<AppUser | null>;
+
+  /** Adopt a token obtained elsewhere — a server handoff, a test fixture, a service token. */
+  setToken(token: string | undefined): void;
+  getToken(): string | undefined;
+};
+
+/** Strips the token out of the address bar without adding a history entry. */
+function scrubUrl(): void {
+  window.history.replaceState({}, "", window.location.pathname + window.location.search);
+}
+
+/** Reads a `key` out of the URL fragment. The fragment is never sent to a server, so it stays out of logs. */
+function fromFragment(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+    return new URLSearchParams(hash).get(key);
+  } catch {
+    return null;
+  }
+}
+
+export function createAuth(req: Requester, storage: TokenStorage): Auth {
+  let current: AppUser | null = null;
+  const listeners = new Set<AuthListener>();
+
+  const emit = (user: AppUser | null): AppUser | null => {
+    current = user;
+    for (const listener of listeners) listener(user);
+    return user;
+  };
+
+  /** Every endpoint that both authenticates and returns a session behaves the same: store, then load the user. */
+  const enter = async (path: string, body: unknown): Promise<AppUser> => {
+    const { access_token } = await req<{ access_token: string }>("POST", path, body);
+    storage.set(access_token);
+    return emit(await req<AppUser>("GET", "/auth/me")) as AppUser;
+  };
+
+  const auth: Auth = {
+    get user() { return current; },
+    hasToken: () => !!storage.get(),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+
+    me: async () => emit(await req<AppUser>("GET", "/auth/me")) as AppUser,
+    login: (email, password) => enter("/auth/login", { email, password }),
+    signup: (input) => enter("/auth/signup", {
+      email: input.email,
+      name: input.name,
+      password: input.password,
+      password_confirmation: input.passwordConfirmation,
+      profile: input.profile,
+    }),
+    logout() {
+      storage.set(undefined);
+      emit(null);
+    },
+
+    async updateProfile(patch) {
+      const { name, ...profile } = patch;
+      return emit(await req<AppUser>("PATCH", "/auth/me", { name, profile })) as AppUser;
+    },
+    async changePassword(newPassword, current_password) {
+      await req<{ ok: boolean }>("POST", "/auth/change-password", { new_password: newPassword, current_password });
+      return emit(await req<AppUser>("GET", "/auth/me")) as AppUser;
+    },
+    forgotPassword: (email, resetUrl) => req<void>("POST", "/auth/forgot-password", { email, reset_url: resetUrl }),
+    resetPassword: (token, password, confirm) =>
+      enter("/auth/reset-password", { token, password, password_confirmation: confirm }),
+    verifyEmail: async (token) => emit(await req<AppUser>("POST", "/auth/verify-email", { token })) as AppUser,
+    resendVerification: (verifyUrl) => req<void>("POST", "/auth/resend-verification", { verify_url: verifyUrl }),
+    acceptInvite: (token, name, password) => enter("/auth/accept-invite", { token, name, password }),
+
+    sendPhoneCode: (phone, purpose = "login") => req<void>("POST", "/auth/phone/send-code", { phone, purpose }),
+    loginWithPhone: (phone, code) => enter("/auth/phone/verify", { phone, code, purpose: "login" }),
+    resetPasswordSms: (phone, code, newPassword) =>
+      enter("/auth/phone/reset", { phone, code, new_password: newPassword }),
+    linkPhone: (phone) => req<void>("POST", "/auth/phone/link", { phone }),
+    verifyPhoneLink: async (phone, code) =>
+      emit(await req<AppUser>("POST", "/auth/phone/link/verify", { phone, code })) as AppUser,
+
+    oauthStartUrl(provider, redirectUri) {
+      const back = redirectUri ?? (typeof window !== "undefined"
+        ? window.location.origin + window.location.pathname
+        : "");
+      return req.url(`/auth/oauth/${encodeURIComponent(provider)}/start?redirect=${encodeURIComponent(back)}`);
+    },
+    async completeOAuth() {
+      const token = fromFragment("fab_oauth_token");
+      if (token) {
+        storage.set(token);
+        try { scrubUrl(); } catch { /* a locked-down history is not a reason to lose the session */ }
+      }
+      // Answer with "the session that exists now", not "I found a token": the token may have been consumed at boot
+      // by an earlier call, and `if (await completeOAuth()) navigate("/")` must still redirect after a login that
+      // did succeed.
+      if (!storage.get()) return null;
+      return emit(await req<AppUser>("GET", "/auth/me").catch(() => null));
+    },
+
+    setToken(token) {
+      storage.set(token);
+      if (!token) emit(null);
+    },
+    getToken: () => storage.get(),
+  };
+  return auth;
+}

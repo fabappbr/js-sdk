@@ -1,0 +1,69 @@
+# Publicação do @fabappai/sdk no npm.
+#
+# ⚠️ Este arquivo está INERTE enquanto o pacote vive no monorepo — o GitHub só lê `.github/workflows/` na RAIZ do
+# repositório. Ele mora aqui de propósito: quando o pacote for extraído para o repositório dele
+# (`git subtree split --prefix=packages/sdk`), o workflow vai junto, já no lugar certo, sem ninguém precisar
+# lembrar de reescrevê-lo.
+#
+# POR QUE OIDC E NÃO UM TOKEN (T1 do plano). Este pacote roda no NAVEGADOR DO USUÁRIO FINAL de todo app gerado por
+# todo cliente. Um token de publish vazado não compromete a Fabapp: compromete a sessão de cada pessoa que usa cada
+# app de cada cliente, e não tem desfazer — a versão maliciosa já foi instalada. Trusted Publishing troca o token de
+# longa duração por um token OIDC de vida curta que o npm valida contra ESTE repositório e ESTE workflow. Não existe
+# segredo para vazar: nem em secret do repositório, nem na máquina de ninguém.
+#
+# ANTES DO PRIMEIRO RELEASE, no npmjs.com: criar a org `fabapp`, exigir 2FA para todo mundo com permissão de
+# publish, e em Settings do pacote ligar "Trusted Publisher" apontando para este repositório + este arquivo.
+#
+# Dispara só por TAG. Nunca por branch, nunca da máquina de um desenvolvedor — o hábito de publicar "só para testar"
+# é exatamente o que vaza credencial.
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write        # o token OIDC do Trusted Publishing; sem isto o npm recusa a publicação
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      # npm 11.5.1+ é o que sabe trocar o token OIDC do Actions por permissão de publish.
+      - run: npm install -g npm@latest
+      - run: npm ci --no-audit --no-fund
+
+      # A tag é a fonte da verdade da versão. Sem esta conferência, uma tag v0.2.0 publicaria o 0.1.0 do
+      # package.json — e o número errado no npm é imutável.
+      - name: a tag bate com a versão do package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          test "$tag" = "$pkg" || { echo "::error::tag $tag ≠ package.json $pkg"; exit 1; }
+
+      - run: npm run lint:no-react
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # O que vai para o registro é o dist/, não o src/. Este passo lê o TARBALL de verdade (`npm pack`) atrás de
+      # coisa que não pode sair de casa: rota de staff, endpoint interno, qualquer literal com cara de chave. Um
+      # pacote público é o pior lugar possível para descobrir que um deles vazou.
+      - name: o tarball não leva rota interna nem chave
+        run: |
+          npm pack --silent >/dev/null
+          tar -xzOf ./*.tgz > /tmp/bundle.txt
+          if grep -nE 'fabapp\.ai/(staff|admin)|sk_live|sk_test|AIza[0-9A-Za-z_-]{20,}|ghp_[0-9A-Za-z]{20,}' /tmp/bundle.txt; then
+            echo "::error::o tarball carrega rota interna ou algo com formato de credencial"
+            exit 1
+          fi
+
+      # `--provenance` grava, junto do pacote, a prova assinada de que ele saiu DESTE commit e DESTE workflow.
+      # É o que deixa quem instala verificar a origem em vez de confiar na nossa palavra.
+      - run: npm publish --provenance --access public

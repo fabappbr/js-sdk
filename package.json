@@ -1,0 +1,33 @@
+{
+  "name": "@fabappai/sdk",
+  "version": "0.1.0",
+  "description": "Fabapp's API client: data, auth, files, AI, functions, connectors and admin. Framework-agnostic.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src", "AGENTS.md", "README.md", "SECURITY.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "keywords": ["fabapp", "backend", "sdk", "api-client"],
+  "repository": { "type": "git", "url": "git+https://github.com/fabappbr/js-sdk.git" },
+  "homepage": "https://github.com/fabappbr/js-sdk#readme",
+  "bugs": { "url": "https://github.com/fabappbr/js-sdk/issues" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint:no-react": "node scripts/no-react.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
