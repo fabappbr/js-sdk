@@ -37,5 +37,14 @@ jobs:
       - run: npm run build
       # O pacote tem de FUNCIONAR fora de bundler — é a tese inteira dele. Um import de Node puro contra o dist/
       # prova isso em três linhas; sem este passo, o primeiro a descobrir seria quem instalou.
+      # ⚠️ Bloco literal (`|`), e não escalar simples: o `projectId: 'p'` aqui dentro tem dois-pontos seguido de
+      # espaço, que o YAML lê como mapeamento aninhado. Escrito em uma linha só, este passo derruba o arquivo
+      # inteiro com "mapping values are not allowed here" — e o workflow falha em 0s, antes de qualquer step.
       - name: o build importa em Node puro
-        run: node -e "import('./dist/index.js').then(m => { const c = m.createClient({ projectId: 'p' }); if (!c.auth || !c.collection) throw new Error('superfície incompleta'); })"
+        run: |
+          node -e "
+            import('./dist/index.js').then((m) => {
+              const client = m.createClient({ projectId: 'p' });
+              if (!client.auth || !client.collection) throw new Error('superficie incompleta');
+            });
+          "
