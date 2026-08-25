@@ -1,6 +1,6 @@
 # Changelog
 
-## Não lançado
+## 0.1.4
 
 **A Skill.** O pacote passa a trazer `skill/SKILL.md`, com o cabeçalho que faz uma ferramenta decidir quando
 carregá-lo. É **derivado** do `AGENTS.md` por `npm run skill`, e o CI reprova se os dois divergirem — três cópias
