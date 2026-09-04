@@ -142,12 +142,61 @@ export function createRequester(opts: {
     return payload as T;
   };
 
-  const req = async <T>(method: string, path: string, body?: unknown, callOpts?: RequestOptions): Promise<T> => {
+  /**
+   * Renews the session once and says whether it worked.
+   *
+   * ⚠️ ONE ATTEMPT AT A TIME, which the shared promise is what guarantees. A screen fires several calls at once;
+   * if each 401 asked for its own renewal, the first rotation would invalidate the refresh the others are still
+   * using, and the server's reuse detection would take the whole lineage down — trading one sign-out an hour for
+   * an immediate one.
+   */
+  let renewing: Promise<boolean> | undefined;
+  const renew = (): Promise<boolean> => {
+    if (renewing) return renewing;
+    renewing = (async () => {
+      const refresh = opts.storage.getRefresh?.();
+      if (!refresh) return false;                 // a storage without support, or a session with no renewal
+      try {
+        const res = await send("/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refresh }),
+        });
+        if (!res.ok) {
+          // An explicit refusal is final: that refresh is spent. Clearing it stops the attempt repeating on
+          // every following call and lets the client fall into the signed-out state, which is the honest one.
+          opts.storage.set(undefined);
+          opts.storage.setRefresh?.(undefined);
+          return false;
+        }
+        const data = (await res.json()) as { access_token?: string; refresh_token?: string };
+        if (!data.access_token) return false;
+        opts.storage.set(data.access_token);
+        if (data.refresh_token) opts.storage.setRefresh?.(data.refresh_token);
+        return true;
+      } catch {
+        return false;      // a network failure is not an invalid session: nothing is cleared
+      } finally {
+        renewing = undefined;
+      }
+    })();
+    return renewing;
+  };
+
+  const req = async <T>(method: string, path: string, body?: unknown, callOpts?: RequestOptions,
+                        retried = false): Promise<T> => {
     const res = await send(path, {
       method,
       headers: headers(body),
       body: body === undefined ? undefined : JSON.stringify(body),
     }, callOpts?.signal);
+    // ⚠️ A 401 WITH A SESSION IN HAND DESERVES A SECOND CHANCE. Without it the client answers "not
+    // authenticated" to somebody whose session is alive on the server, with only the access token past its
+    // deadline. One attempt only: if the repeat also comes back 401 the session really is over, and insisting
+    // would become two requests per call, for ever.
+    if (res.status === 401 && !retried && opts.storage.get() && await renew()) {
+      return req<T>(method, path, body, callOpts, true);
+    }
     return finish<T>(res);
   };
 

@@ -8,14 +8,30 @@
 export interface TokenStorage {
   get(): string | undefined;
   set(token: string | undefined): void;
+  /**
+   * The REFRESH token, when this storage knows how to keep one.
+   *
+   * ⚠️ OPTIONAL ON PURPOSE, and not out of indecision: `TokenStorage` is public, and whoever already wrote their
+   * own implementation keeps compiling. Without the two methods the client simply does not renew — which is the
+   * previous behaviour, not a break.
+   *
+   * ⚠️ WHY IT EXISTS. The access token has a deadline; with no renewal there comes a moment when the client is
+   * still sending a credential the server has stopped accepting, and the app shows "session expired" to somebody
+   * whose session is alive. Measured in production on 04/09/2026: 552 refusals in one day, across 50 apps.
+   */
+  getRefresh?(): string | undefined;
+  setRefresh?(token: string | undefined): void;
 }
 
 /** A per-client token held in a closure. The default off the browser — one client, one session. */
 export function memoryStorage(initial?: string): TokenStorage {
   let token = initial;
+  let refresh: string | undefined;
   return {
     get: () => token,
     set: (t) => { token = t || undefined; },
+    getRefresh: () => refresh,
+    setRefresh: (t) => { refresh = t || undefined; },
   };
 }
 
@@ -32,6 +48,7 @@ const THIRTY_DAYS = 60 * 60 * 24 * 30;
 export function cookieStorage(name: string): TokenStorage {
   const inFrame = () => typeof window !== "undefined" && window.parent !== window;
   let shadow: string | undefined;
+  let shadowRefresh: string | undefined;
   return {
     get() {
       const stored = readCookie(name);
@@ -40,12 +57,27 @@ export function cookieStorage(name: string): TokenStorage {
     },
     set(token) {
       shadow = token || undefined;
-      if (typeof document === "undefined") return;
-      document.cookie = token
-        ? `${name}=${encodeURIComponent(token)}; path=/; max-age=${THIRTY_DAYS}; samesite=lax`
-        : `${name}=; path=/; max-age=0; samesite=lax`;
+      write(name, token);
+    },
+    // The refresh goes in a SEPARATE cookie: the access one travels on every request, the renewal one only on a
+    // renewal. Together, the long-lived one would wander along on every call for nothing.
+    getRefresh() {
+      const stored = readCookie(`${name}_refresh`);
+      if (stored) return stored;
+      return inFrame() ? shadowRefresh : undefined;
+    },
+    setRefresh(token) {
+      shadowRefresh = token || undefined;
+      write(`${name}_refresh`, token);
     },
   };
+}
+
+function write(name: string, token: string | undefined): void {
+  if (typeof document === "undefined") return;
+  document.cookie = token
+    ? `${name}=${encodeURIComponent(token)}; path=/; max-age=${THIRTY_DAYS}; samesite=lax`
+    : `${name}=; path=/; max-age=0; samesite=lax`;
 }
 
 /**

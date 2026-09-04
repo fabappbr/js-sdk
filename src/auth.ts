@@ -32,7 +32,8 @@ export type Auth = {
   me(): Promise<AppUser>;
   login(email: string, password: string): Promise<AppUser>;
   signup(input: SignupInput): Promise<AppUser>;
-  logout(): void;
+  /** Ends the session on the server and clears the client. `everywhere` drops all of that person's devices. */
+  logout(everywhere?: boolean): void;
 
   updateProfile(patch: { name?: string; [k: string]: unknown }): Promise<AppUser>;
   changePassword(newPassword: string, current?: string): Promise<AppUser>;
@@ -94,8 +95,12 @@ export function createAuth(req: Requester, storage: TokenStorage): Auth {
 
   /** Every endpoint that both authenticates and returns a session behaves the same: store, then load the user. */
   const enter = async (path: string, body: unknown): Promise<AppUser> => {
-    const { access_token } = await req<{ access_token: string }>("POST", path, body);
+    const { access_token, refresh_token } =
+      await req<{ access_token: string; refresh_token?: string }>("POST", path, body);
     storage.set(access_token);
+    // Absent in the flows that come back through a redirect (OAuth/SSO): there the refresh would sit in the URL,
+    // in the history and in the Referer. Those keep the session token, which is revocable on the server.
+    storage.setRefresh?.(refresh_token);
     return emit(await req<AppUser>("GET", "/auth/me")) as AppUser;
   };
 
@@ -116,9 +121,25 @@ export function createAuth(req: Requester, storage: TokenStorage): Auth {
       password_confirmation: input.passwordConfirmation,
       profile: input.profile,
     }),
-    logout() {
+    /**
+     * Ends the session ON THE SERVER, and not only on the client.
+     *
+     * ⚠️ IT USED TO BE JUST DELETING THE TOKEN: it stayed valid until it expired, so whoever held a copy (a
+     * shared computer, a log) was still inside the app after the click on "sign out". The local state is
+     * cleared FIRST and the server is told without waiting — signing out cannot depend on the network.
+     *
+     * `everywhere` drops all of that person's sessions, not only this one.
+     */
+    logout(everywhere = false) {
+      const refresh = storage.getRefresh?.();
+      const hadToken = !!storage.get();
       storage.set(undefined);
+      storage.setRefresh?.(undefined);
       emit(null);
+      if (hadToken) {
+        void req("POST", "/auth/logout", everywhere ? { everywhere: true } : { refresh_token: refresh })
+          .catch(() => { /* signing out is local; the network cannot prevent it */ });
+      }
     },
 
     async updateProfile(patch) {
