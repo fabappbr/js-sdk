@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 **Added — sign-in by a code sent to the email.** `fab.auth.sendEmailCode(email)` emails a 6-digit code and
 `fab.auth.loginWithEmailCode(email, code)` exchanges it for a session, the same way the SMS pair does — no password
