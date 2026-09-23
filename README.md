@@ -140,6 +140,8 @@ Only for a signed-in user holding the `admin` role.
 ```ts
 await fab.admin.listUsers();
 await fab.admin.updateUser(id, { roles: ["staff"] });
+await fab.admin.createUser({ email, name });                   // exists at once; no password, no email sent
+await fab.admin.createUsers(rows);                             // ≤ 200 rows; existing addresses are skipped
 await fab.admin.grantSubscription(userId, { planId });        // complimentary; no gateway involved
 await fab.admin.subscriptionLink(userId, { planId, successUrl, cancelUrl });
 ```

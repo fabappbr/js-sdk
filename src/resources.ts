@@ -144,9 +144,27 @@ export function createGoogle(req: Requester): Google {
 // ---- administration -------------------------------------------------------------------------------------------
 
 /** Only works for a signed-in user holding the `admin` role. This is what an app's own admin screen calls. */
+export type NewUser = { email: string; name?: string; role?: string; profile?: Record<string, unknown> };
+export type BulkCreateResult = {
+  created: number; skipped: number; errors: number;
+  results: { email: string | null; status: "created" | "skipped" | "error"; id?: string; detail?: string }[];
+};
+
 export type Admin = {
   listUsers(): Promise<AppUser[]>;
   updateUser(id: string, patch: { roles?: string[]; plan?: string }): Promise<AppUser>;
+  /**
+   * Creates an account at once: active, the email taken as verified, no password anybody knows (the person signs in
+   * by an emailed code, or sets one through "forgot password"). Sends no email. Rejects with 409 when the address
+   * already has an account. For a list the owner already holds, whose records must point at an account before the
+   * person's first sign-in.
+   */
+  createUser(input: NewUser): Promise<AppUser>;
+  /**
+   * Up to 200 accounts in one call — an imported list. Row by row: an address that already exists is `skipped`, a
+   * refused row is an `error` with its reason, the rest is created — so the same file can be imported twice safely.
+   */
+  createUsers(users: NewUser[]): Promise<BulkCreateResult>;
   /** A complimentary subscription: it unlocks the paid plan with no charge and never touches the gateway. */
   grantSubscription(userId: string, opts?: { planId?: string; expiresAt?: string }):
     Promise<{ mode: string; user_id: string; plan: string; expires_at: string | null }>;
@@ -164,6 +182,8 @@ export function createAdmin(req: Requester): Admin {
   return {
     listUsers: () => req<AppUser[]>("GET", "/admin/users"),
     updateUser: (id, patch) => req<AppUser>("PATCH", `/admin/users/${encodeURIComponent(id)}`, patch),
+    createUser: (input) => req<AppUser>("POST", "/admin/users", input),
+    createUsers: (users) => req<BulkCreateResult>("POST", "/admin/users/bulk", { users }),
     grantSubscription: (userId, opts) => req("POST", "/admin/subscriptions", {
       user_id: userId, mode: "comp", plan_id: opts?.planId, expires_at: opts?.expiresAt,
     }),

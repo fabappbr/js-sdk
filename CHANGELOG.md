@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+**Added — an admin creates accounts.** `fab.admin.createUser({ email, name?, role?, profile? })` creates an end
+user at once: active, the email taken as verified, no password anybody knows — the person signs in by an emailed
+code, or sets a password through "forgot password". It sends no email and rejects with 409 when the address exists.
+`fab.admin.createUsers(rows)` takes up to 200 rows and answers `{ created, skipped, errors, results }`; an address
+that already has an account is skipped, so importing the same list twice is safe. `invite` remains the door for
+somebody who should pick their own name and password.
+
 ## 0.3.0
 
 **Added — sign-in by a code sent to the email.** `fab.auth.sendEmailCode(email)` emails a 6-digit code and

@@ -184,3 +184,21 @@ describe("sign-in by a code sent to the email", () => {
     expect(storage.getRefresh?.()).toBe("ref-1");
   });
 });
+
+describe("an admin creates accounts", () => {
+  it("posts one account, and a list to the bulk door", async () => {
+    const { impl, calls } = recorder([
+      { body: { id: "u1", email: "ana@x.com" } },
+      { body: { created: 1, skipped: 1, errors: 0, results: [] } },
+    ]);
+    const fab = createClient(config({ fetch: impl, storage: memoryStorage("tok") }));
+
+    await expect(fab.admin.createUser({ email: "ana@x.com", name: "Ana" })).resolves.toMatchObject({ id: "u1" });
+    await expect(fab.admin.createUsers([{ email: "ana@x.com" }, { email: "bo@x.com" }])).resolves.toMatchObject({ created: 1 });
+
+    expect(calls[0]).toMatchObject({ method: "POST", url: "https://api.example.test/projects/proj-1/admin/users",
+                                     body: { email: "ana@x.com", name: "Ana" } });
+    expect(calls[1]).toMatchObject({ method: "POST", url: "https://api.example.test/projects/proj-1/admin/users/bulk",
+                                     body: { users: [{ email: "ana@x.com" }, { email: "bo@x.com" }] } });
+  });
+});

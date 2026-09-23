@@ -160,7 +160,7 @@ export type { Auth, AuthListener, SignupInput } from "./auth.js";
 export type { Collection } from "./collection.js";
 export type { Requester, RequestOptions } from "./http.js";
 export type { Push, PublicConfig } from "./push.js";
-export type { Admin, AI, Google, NotifyChannel, Orgs, PaymentMethods, UploadedFile } from "./resources.js";
+export type { Admin, AI, BulkCreateResult, Google, NewUser, NotifyChannel, Orgs, PaymentMethods, UploadedFile } from "./resources.js";
 export type { TokenStorage } from "./storage.js";
 export type {
   AppUser, FilterOps, FilterPrimitive, FilterValue, InvokeResult, ListOptions, Notification, OrgRef, PayMethod, Row,
