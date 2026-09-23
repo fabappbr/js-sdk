@@ -43,6 +43,14 @@ export type Auth = {
   resendVerification(verifyUrl?: string): Promise<void>;
   acceptInvite(token: string, name: string, password: string): Promise<AppUser>;
 
+  /**
+   * Sign-in by a 6-digit code sent to the EMAIL — no password. Only works when the app owner turned it on
+   * (`publicConfig().emailCodeLogin`). `sendEmailCode` always resolves the same way whether or not the address has an
+   * account; with sign-up closed, only existing accounts actually receive a code.
+   */
+  sendEmailCode(email: string): Promise<void>;
+  loginWithEmailCode(email: string, code: string): Promise<AppUser>;
+
   /** SMS sign-in and recovery. Only works when the app owner has connected an SMS provider. */
   sendPhoneCode(phone: string, purpose?: "login" | "reset"): Promise<void>;
   loginWithPhone(phone: string, code: string): Promise<AppUser>;
@@ -156,6 +164,9 @@ export function createAuth(req: Requester, storage: TokenStorage): Auth {
     verifyEmail: async (token) => emit(await req<AppUser>("POST", "/auth/verify-email", { token })) as AppUser,
     resendVerification: (verifyUrl) => req<void>("POST", "/auth/resend-verification", { verify_url: verifyUrl }),
     acceptInvite: (token, name, password) => enter("/auth/accept-invite", { token, name, password }),
+
+    sendEmailCode: (email) => req<void>("POST", "/auth/email/send-code", { email }),
+    loginWithEmailCode: (email, code) => enter("/auth/email/verify", { email, code }),
 
     sendPhoneCode: (phone, purpose = "login") => req<void>("POST", "/auth/phone/send-code", { phone, purpose }),
     loginWithPhone: (phone, code) => enter("/auth/phone/verify", { phone, code, purpose: "login" }),

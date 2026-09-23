@@ -208,7 +208,8 @@ fab.collection<T>(model)      // list, count, get, create, update, updateMany, u
                               // bulkCreate, deleteMany, remove, poll
 fab.auth                      // login, signup, logout, me, updateProfile, changePassword,
                               // forgotPassword, resetPassword, acceptInvite, oauthStartUrl,
-                              // completeOAuth, phone sign-in, subscribe(listener)
+                              // completeOAuth, email-code sign-in, phone sign-in,
+                              // subscribe(listener)
 fab.uploadFile(file)          // presigned; public or private
 fab.ai                        // invokeLLM, generateImage, extractData
 fab.callFunction(name, body)  // a backend function, isolated, server-side

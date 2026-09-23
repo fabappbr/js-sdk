@@ -149,3 +149,38 @@ describe("signing out ends the session on the server", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("sign-in by a code sent to the email", () => {
+  it("asks for the code with the address and nothing else", async () => {
+    const { impl, calls } = recorder([{ body: { ok: true } }]);
+    const fab = createClient(config({ fetch: impl, storage: memoryStorage() }));
+
+    await expect(fab.auth.sendEmailCode("ana@x.com")).resolves.toMatchObject({ ok: true });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      method: "POST",
+      url: "https://api.example.test/projects/proj-1/auth/email/send-code",
+      body: { email: "ana@x.com" },
+    });
+  });
+
+  it("exchanges the code for a session and loads the person", async () => {
+    const storage = memoryStorage();
+    const { impl, calls } = recorder([
+      { body: { access_token: "tok-1", refresh_token: "ref-1" } },   // the verify
+      { body: { id: "u1", email: "ana@x.com" } },                    // /auth/me
+    ]);
+    const fab = createClient(config({ fetch: impl, storage }));
+
+    await expect(fab.auth.loginWithEmailCode("ana@x.com", "123456")).resolves.toMatchObject({ id: "u1" });
+
+    expect(calls[0]).toMatchObject({
+      method: "POST",
+      url: "https://api.example.test/projects/proj-1/auth/email/verify",
+      body: { email: "ana@x.com", code: "123456" },
+    });
+    expect(storage.get()).toBe("tok-1");
+    expect(storage.getRefresh?.()).toBe("ref-1");
+  });
+});

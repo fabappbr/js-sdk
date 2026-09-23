@@ -4,6 +4,8 @@ import type { Requester } from "./http.js";
 export type PublicConfig = {
   vapidPublicKey?: string | null;
   phoneLogin?: boolean;
+  /** Sign-in by a code sent to the email is on for this app. */
+  emailCodeLogin?: boolean;
   payments?: { provider?: string; publishableKey?: string };
   [k: string]: unknown;
 };

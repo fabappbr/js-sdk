@@ -92,6 +92,10 @@ fab.auth.subscribe((user) => render(user));                   // returns the uns
 Social sign-in is two steps: send the browser to `fab.auth.oauthStartUrl("google")`, and call
 `await fab.auth.completeOAuth()` on the page the provider returns to.
 
+Sign-in by a code sent to the email — `sendEmailCode(email)`, then `loginWithEmailCode(email, code)` — works once the
+app owner has turned it on; `(await fab.publicConfig()).emailCodeLogin` says whether to offer it. With sign-up closed,
+only people who already have an account receive a code, and the call answers the same either way.
+
 Sign-in by SMS — `sendPhoneCode`, `loginWithPhone`, `linkPhone`, `verifyPhoneLink` — works once the app owner has
 connected an SMS provider; `(await fab.publicConfig()).phoneLogin` says whether to offer it.
 

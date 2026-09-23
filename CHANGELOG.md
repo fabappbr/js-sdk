@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**Added — sign-in by a code sent to the email.** `fab.auth.sendEmailCode(email)` emails a 6-digit code and
+`fab.auth.loginWithEmailCode(email, code)` exchanges it for a session, the same way the SMS pair does — no password
+and no SMS provider. The app owner turns it on per app (`auth.email_code_login`), and `publicConfig().emailCodeLogin`
+says whether to show it. The code expires in 10 minutes, dies after 5 wrong tries and works once. With sign-up
+closed, only existing accounts receive one, and the call answers identically for an address that has no account.
+
 ## 0.1.4
 
 **A Skill.** The package now ships `skill/SKILL.md`, with the header that lets a tool decide when to load it. It
