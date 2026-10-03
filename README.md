@@ -129,6 +129,7 @@ The model keys belong to the platform. Your code never holds one, and never can.
 await fab.notify("email", { to, subject, message, link });   // plain text; put the URL in `link`
 await fab.notify("sms", { to, message });
 await fab.integrations.call("whatsapp", "sendMessage", { to, body });
+// `provider` is a closed union (`IntegrationProvider`); `maps` is not one — Google Maps is the `geo` field
 await fab.callConnector(connectorId, "listContacts", { query: { limit: 10 } });
 await fab.google.sheetsAppend(spreadsheetId, "Sheet1!A1", [[name, email]]);
 ```

@@ -17,7 +17,8 @@ import { createPush, type Push, type PublicConfig } from "./push.js";
 import {
   callConnector, callIntegration, createAI, createAdmin, createAgent, createGoogle, createOrgs,
   createPaymentMethods, notify, uploadFile,
-  type Admin, type AI, type Google, type NotifyChannel, type Orgs, type PaymentMethods, type UploadedFile,
+  type Admin, type AI, type Google, type IntegrationProvider, type NotifyChannel, type Orgs, type PaymentMethods,
+  type UploadedFile,
 } from "./resources.js";
 import { cookieStorage, memoryStorage, type TokenStorage } from "./storage.js";
 import type { Row } from "./types.js";
@@ -76,7 +77,7 @@ export type FabClient = {
   notify(channel: NotifyChannel, opts: { message: string; to?: string; subject?: string; link?: string }):
     Promise<{ ok: boolean; channel: string; credits: number | null }>;
   integrations: {
-    call<T = unknown>(provider: string, action: string, params: Record<string, unknown>):
+    call<T = unknown>(provider: IntegrationProvider, action: string, params: Record<string, unknown>):
       Promise<{ ok: boolean; provider: string; action: string; credits: number | null; result: T }>;
   };
   callConnector<T = unknown>(connectorId: string, operationId: string, opts?: {
@@ -160,7 +161,9 @@ export type { Auth, AuthListener, SignupInput } from "./auth.js";
 export type { Collection } from "./collection.js";
 export type { Requester, RequestOptions } from "./http.js";
 export type { Push, PublicConfig } from "./push.js";
-export type { Admin, AI, BulkCreateResult, Google, NewUser, NotifyChannel, Orgs, PaymentMethods, UploadedFile } from "./resources.js";
+export type {
+  Admin, AI, BulkCreateResult, Google, IntegrationProvider, NewUser, NotifyChannel, Orgs, PaymentMethods, UploadedFile,
+} from "./resources.js";
 export type { TokenStorage } from "./storage.js";
 export type {
   AppUser, FilterOps, FilterPrimitive, FilterValue, InvokeResult, ListOptions, Notification, OrgRef, PayMethod, Row,

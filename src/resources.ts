@@ -100,8 +100,16 @@ export function notify(
   return req("POST", "/api/_notify/send", { channel, ...opts });
 }
 
+/**
+ * The providers `integrations.call` can reach — the platform's CLOSED list. A name outside it answers 422
+ * "provedor desconhecido" on every call, so the type refuses it before anything is published. `maps` is not a
+ * provider: Google Maps is the `geo` field and the address autocomplete component, and there is no routing API.
+ */
+export type IntegrationProvider =
+  "whatsapp" | "shopify" | "meta" | "telegram" | "notion" | "airtable" | "mailchimp" | "webhook";
+
 export function callIntegration<T = unknown>(
-  req: Requester, provider: string, action: string, params: Record<string, unknown>,
+  req: Requester, provider: IntegrationProvider, action: string, params: Record<string, unknown>,
 ): Promise<{ ok: boolean; provider: string; action: string; credits: number | null; result: T }> {
   return req("POST", `/api/_integrations/${encodeURIComponent(provider)}/call`, { action, params });
 }

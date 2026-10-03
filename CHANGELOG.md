@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+**Changed — `integrations.call` names its providers.** `provider` is now the `IntegrationProvider` union
+(`whatsapp | shopify | meta | telegram | notion | airtable | mailchimp | webhook`) instead of `string`. The list is
+the platform's registry and it is closed: a name outside it answered 422 "provedor desconhecido" on every call, and
+a coding agent working through the CLI had no signal before publishing. `maps` is deliberately not on it — Google
+Maps is the `geo` field and the address autocomplete component, not a provider, and there is no routing API. A test
+keeps the union equal to the server's registry when the platform source sits next to this package.
+
 ## 0.4.0
 
 **Added — an admin creates accounts.** `fab.admin.createUser({ email, name?, role?, profile? })` creates an end
